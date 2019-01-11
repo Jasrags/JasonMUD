@@ -2,48 +2,26 @@ package main
 
 import (
 	"fmt"
-	"net"
+
+	"github.com/jasrags/JasonMUD/server"
+	"go.uber.org/zap"
 )
 
 const (
-	ServerHost = "localhost"
-	ServerPort = "3333"
-	ServerType = "tcp"
+	ServerHost    = "localhost"
+	ServerPort    = "3333"
+	ServerNetwork = "tcp"
 )
 
-type User struct {
-	Conn net.Conn
-}
-
 func main() {
-	fmt.Printf("Starting %v server\n", ServerType)
-	l, err := net.Listen(ServerType, net.JoinHostPort(ServerHost, ServerPort))
-	if err != nil {
-		panic(err)
+	logger, errZap := zap.NewDevelopment()
+	if errZap != nil {
+		fmt.Printf("unable to setup logger: %v\n", errZap)
 	}
-	defer l.Close()
-	fmt.Printf("%v server started on port '%v'\n", ServerType, ServerPort)
+	defer logger.Sync()
 
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			fmt.Printf("error accepting connection: " + err.Error())
-		}
-
-		go handleConnection(conn)
+	s := server.New(logger)
+	if err := s.Start(ServerHost, ServerPort, ServerNetwork); err != nil {
+		logger.Panic("unable to start server", zap.Error(err))
 	}
-}
-
-func handleConnection(conn net.Conn) {
-	u := User{Conn: conn}
-	u.Conn.Write([]byte("Welcome\n"))
-
-	buf := make([]byte, 1024)
-	_, err := u.Conn.Read(buf)
-	if err != nil {
-		fmt.Println("error reading input:", err.Error())
-	}
-
-	u.Conn.Write([]byte("Message received.\n"))
-	u.Conn.Close()
 }
